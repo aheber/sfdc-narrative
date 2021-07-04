@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Build_Query_Usage__c</fullName>
+    <description
+  >Query count is pulled from the Limits class when constructing the Log object and again when queueing. This is the delta between those two.</description>
+    <externalId>false</externalId>
+    <inlineHelpText
+  >Number of SOQL queries used to build the Log object</inlineHelpText>
+    <label>Build Query Usage</label>
+    <precision>18</precision>
+    <required>false</required>
+    <scale>0</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

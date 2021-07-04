@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Root_Session_Id__c</fullName>
+    <externalId>true</externalId>
+    <inlineHelpText
+  >Record Id from AuthSession for root of the current session</inlineHelpText>
+    <label>Root Session Id</label>
+    <length>255</length>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

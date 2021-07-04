@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Build_CPU_Time__c</fullName>
+    <description
+  >Time is pulled from the Limits class when constructing the Log object and again when queueing. This is the delta between those two moments. Rounded down to the nearest millisecond.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>How quickly the Log object was constructed</inlineHelpText>
+    <label>Build CPU Time (MS)</label>
+    <precision>18</precision>
+    <required>false</required>
+    <scale>0</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>
