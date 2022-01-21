@@ -1,0 +1,12 @@
+<template>
+  <input type="text" id="message" />
+  <div>
+    <button onclick={callWithSuccessApex}>Call With Success</button>
+    <button onclick={callWithFailureApex}>Call With Failure</button>
+    <button onclick={callWithSuccessLWC}>Call With Success LWC</button>
+    <button onclick={callWithFailureLWC}>Call With Failure in LWC</button>
+    <button onclick={callWithQueueableFailure}>
+      Call With Failure out in Queueable land
+    </button>
+  </div>
+</template>

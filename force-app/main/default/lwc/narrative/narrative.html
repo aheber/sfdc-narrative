@@ -1,0 +1,65 @@
+<template>
+  <lightning-card title="EmpApi Example" icon-name="custom:custom14">
+    <div class="slds-m-around_medium">
+      <p>
+        Use the buttons below to subscribe and unsubscribe to a streaming
+        channel!
+      </p>
+      <lightning-input
+        label="Channel Name"
+        value={channelName}
+        onchange={handleChannelName}
+      ></lightning-input>
+      <lightning-button
+        variant="success"
+        label="Subscribe"
+        title="Subscribe"
+        onclick={handleSubscribe}
+        disabled={isSubscribeDisabled}
+        class="slds-m-left_x-small"
+      ></lightning-button>
+      <lightning-button
+        variant="destructive"
+        label="Unsubscribe"
+        title="Unsubscribe"
+        onclick={handleUnsubscribe}
+        disabled={isUnsubscribeDisabled}
+        class="slds-m-left_x-small"
+      ></lightning-button>
+    </div>
+  </lightning-card>
+  <c-narrative-demo></c-narrative-demo>
+  <lightning-layout>
+    <lightning-layout-item size="3">
+      <lightning-card title="Events">
+        <div class="slds-m-around_medium">
+          <ul>
+            <template for:each={events} for:item="e">
+              <li key={e.event.replayId}>
+                <button onclick={handleRowSelect} data-id={e.event.replayId}>
+                  View
+                </button>
+                &nbsp; {e.event.replayId}
+              </li>
+            </template>
+          </ul>
+        </div>
+      </lightning-card>
+    </lightning-layout-item>
+    <lightning-layout-item size="9">
+      <lightning-card title="Selected Event">
+        <div class="slds-m-around_medium">
+          Replay Id: {selectedReplayId} -- Created By Id: {selectedCreatedBy}<br />
+          <!-- {selectedEventPayload} -->
+
+          <template for:each={selectedEventSection} for:item="section">
+            <div key={section.name}>
+              <span style="font-weight: bold">{section.name}</span>
+              <pre>{section.value}</pre>
+            </div>
+          </template>
+        </div>
+      </lightning-card></lightning-layout-item
+    >
+  </lightning-layout>
+</template>

@@ -142,4 +142,8 @@
         <tab>Arc__c</tab>
         <visibility>Visible</visibility>
     </tabSettings>
+    <tabSettings>
+        <tab>Narrative</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
 </PermissionSet>

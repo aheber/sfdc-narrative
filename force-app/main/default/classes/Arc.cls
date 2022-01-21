@@ -1,5 +1,6 @@
 @SuppressWarnings('PMD.ExcessivePublicCount,PMD.TooManyFields')
 public without sharing class Arc {
+  public static Boolean shouldPullRequestContext = true;
   // regex pattern to decompose the stack trace
   private static final Pattern STACK_LINE = Pattern.compile(
     '\\w+ (\\d+), \\w+ (\\d+)'
@@ -15,11 +16,13 @@ public without sharing class Arc {
   @TestVisible
   private static List<ArcWrapper> arcQueue = new List<ArcWrapper>();
   private static String logLevel;
+  private static Request reqInfo;
   private static Integer logNum = 1; // incremented with each log
   private static Integer unownedSoqlCost;
   private static Integer unownedCpuCost;
 
   // instance properties
+  @TestVisible
   private final ArcWrapper lw;
   private LoggingLevel level;
   private Boolean forceLog = false;
@@ -37,7 +40,6 @@ public without sharing class Arc {
     Integer startingCpuTime = Limits.getCpuTime();
     logLevel = getLogLevel();
     CLASS_NAME = Arc.class.getName();
-    REQ_INFO = Request.getCurrent();
     SESSION_ID_HASH = getSessionHash();
     Map<String, String> s = getRootSession();
     ROOT_SESSION_ID = s.get('SessionId');
@@ -127,8 +129,87 @@ public without sharing class Arc {
     return this;
   }
 
+  public Arc setSaveResult(Database.SaveResult result) {
+    this.setContext(result.getId());
+    this.addDetail('saveResultIsSuccessful', result.isSuccess());
+    for (Database.Error err : result.getErrors()) {
+      values.add(
+        new Map<String, Object>{
+          'statusCode' => err.getStatusCode(),
+          'errorMessage' => err.getMessage(),
+          'errorFields' => err.getFields()
+        }
+      );
+    }
+    return this;
+  }
+
   public Arc forceLogging() {
     return setForceLogging(true);
+  }
+
+  public Arc overrideProperties(Map<String, Object> data) {
+    if (data == null) {
+      return this;
+    }
+    try {
+      lw.className = getStringOverride(data.get('className'), lw.className);
+      lw.methodName = getStringOverride(data.get('methodName'), lw.methodName);
+      lw.lineNum = getStringOverride(data.get('lineNum'), lw.lineNum);
+      lw.quiddity = getStringOverride(data.get('quiddity'), lw.quiddity);
+      lw.exceptionType = getStringOverride(
+        data.get('exceptionType'),
+        lw.exceptionType
+      );
+      lw.exceptionMessage = getStringOverride(
+        data.get('exceptionMessage'),
+        lw.exceptionMessage
+      );
+      lw.exceptionCause = getStringOverride(
+        data.get('exceptionCause'),
+        lw.exceptionCause
+      );
+      lw.exceptionLineNumber = getIntegerOverride(
+        data.get('exceptionLineNumber'),
+        lw.exceptionLineNumber
+      );
+      lw.exceptionStack = getStringOverride(
+        data.get('exceptionStack'),
+        lw.exceptionStack
+      );
+      lw.message = getStringOverride(data.get('message'), lw.message);
+      lw.details = getStringOverride(data.get('details'), lw.details);
+      lw.recordContext = getStringOverride(
+        data.get('recordContext'),
+        lw.recordContext
+      );
+      lw.logLevel = getStringOverride(data.get('logLevel'), lw.logLevel);
+      lw.stackTrace = getStringOverride(data.get('stackTrace'), lw.stackTrace);
+    } catch (Exception e) {
+    }
+    return this;
+  }
+
+  private String getStringOverride(Object value, String fallback) {
+    try {
+      String out = String.valueOf(value);
+      if (String.isNotBlank(out)) {
+        return out;
+      }
+    } catch (Exception e) {
+    }
+    return fallback;
+  }
+
+  private Integer getIntegerOverride(Object value, Integer fallback) {
+    try {
+      Integer out = Integer.valueOf(value);
+      if (out != null) {
+        return out;
+      }
+    } catch (Exception e) {
+    }
+    return fallback;
   }
 
   public Arc setForceLogging(Boolean f) {
@@ -247,8 +328,17 @@ public without sharing class Arc {
   }
 
   private void populateRequestDetails() {
-    lw.requestId = REQ_INFO.getRequestId();
-    lw.quiddity = REQ_INFO.getQuiddity().name();
+    // problem in login handler, Request.getCurrent explodes the transaction
+    if (shouldPullRequestContext) {
+      if (reqInfo == null) {
+        reqInfo = Request.getCurrent();
+      }
+      lw.requestId = reqInfo.getRequestId();
+      lw.quiddity = reqInfo.getQuiddity().name();
+    } else {
+      lw.requestId = 'unknown';
+      lw.quiddity = 'unknown';
+    }
   }
 
   // Static support methods
@@ -291,7 +381,7 @@ public without sharing class Arc {
   private static String getLogLevel() {
     // If you have configuration management employed in your org
     // you can use that to manage the default logging level here
-    return LoggingLevel.ERROR.name();
+    return LoggingLevel.FINEST.name();
   }
 
   // convert the session to a hash so we can correlate but don't expose the actual hash
@@ -306,7 +396,27 @@ public without sharing class Arc {
   }
 
   private static Map<String, String> getRootSession() {
-    Map<String, String> aMap = Auth.SessionManagement.getCurrentSession();
+    Map<String, String> aMap;
+    List<AuthSession> sessionsList = [
+      SELECT
+        Id,
+        SourceIp,
+        UsersId,
+        UserType,
+        ParentId,
+        NumSecondsValid,
+        LoginType,
+        LoginHistoryId,
+        CreatedDate,
+        SessionType,
+        LastModifiedDate,
+        LogoutUrl,
+        SessionSecurityLevel
+      FROM AuthSession
+      WHERE UsersId = :UserInfo.getUserId()
+      ORDER BY IsCurrent DESC
+    ];
+    aMap = getDataMapFromSession(sessionsList[0]);
     Map<String, String> sDetails = new Map<String, String>();
     for (String k : aMap.keySet()) {
       sDetails.put(k, aMap.get(k));
@@ -329,7 +439,20 @@ public without sharing class Arc {
       return getDataMapFromSession(null);
     }
     List<AuthSession> sessions = [
-      SELECT Id, SourceIp, UsersId
+      SELECT
+        Id,
+        SourceIp,
+        UsersId,
+        UserType,
+        ParentId,
+        NumSecondsValid,
+        LoginType,
+        LoginHistoryId,
+        CreatedDate,
+        SessionType,
+        LastModifiedDate,
+        LogoutUrl,
+        SessionSecurityLevel
       FROM AuthSession
       WHERE Id IN :parentSessionIds AND ParentId = NULL
     ];
@@ -478,5 +601,44 @@ public without sharing class Arc {
     public String sessionId; // hash of the current sessionId, used to tied multiple transactions to a user session
     public String rootSessionId; // the AuthSession identifier for the root of this session
     public String publicIpAddress;
+  }
+
+  public class ArcFinalizer implements Finalizer {
+    // a Log instance that can be used to add details or context from the initiating class
+    public Arc arcEntry;
+    // can be overriden to force logging even for success
+    public Boolean logOnSuccess = false;
+    // the finalizer will hold a reference to the list of arcs
+    // this will pull any uncommited Arc data through the serialization
+    // we can then commit them to the platform events in the finalizer execution
+    List<ArcWrapper> arcQueue;
+
+    public ArcFinalizer() {
+      this.arcEntry = new Arc(LoggingLevel.ERROR);
+      this.arcQueue = Arc.arcQueue;
+    }
+
+    public void execute(FinalizerContext ctx) {
+      Id parentQueueableJobId = ctx.getAsyncApexJobId();
+
+      if (ctx.getResult() == ParentJobResult.SUCCESS) {
+        // everthing worked, should long at a better level an error
+        arcEntry.setLogLevel(LoggingLevel.INFO);
+      }
+
+      if (ctx.getResult() != ParentJobResult.SUCCESS || logOnSuccess) {
+        // Finalizer should log the state and details of the Queueable
+        arcEntry.setException(ctx.getException());
+        arcEntry.addDetail('queueableJobId', parentQueueableJobId);
+        arcEntry.addDetail('parentJobResult', ctx.getResult().name());
+        arcEntry.addDetail('loggingQueueSize', arcQueue.size());
+        arcEntry.queue();
+      }
+
+      // Restore the queued but undelivered arc entries from the Queueable
+      Arc.arcQueue.addAll(this.arcQueue);
+
+      Arc.flush();
+    }
   }
 }
